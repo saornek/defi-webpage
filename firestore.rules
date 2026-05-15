@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /admins/{uid} {
+      allow read, write: if isAdmin();
+    }
+
+    match /teams/{teamId} {
+      allow read: if true;
+      allow write: if isAdmin();
+      allow update: if true;
+    }
+
+    match /matches/{matchId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /results/{matchId} {
+      allow read: if true;
+      allow create: if !exists(/databases/$(database)/documents/results/$(matchId));
+      allow update, delete: if isAdmin();
+    }
+
+    match /matchRequests/{requestId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /matchHistory/{historyId} {
+      allow read: if true;
+      allow create: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /ladder/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /auditLog/{logId} {
+      allow read: if isAdmin();
+      allow create: if true;
+    }
+  }
+}
