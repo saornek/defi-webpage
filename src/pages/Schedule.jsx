@@ -39,11 +39,6 @@ export default function Schedule() {
     return results.find(r => r.matchId === matchId);
   }
 
-  function getTeamName(id) {
-    const t = teams.find(t => t.id === id);
-    return t ? t.name : '—';
-  }
-
   const now = new Date();
 
   const upcoming = matches
@@ -59,8 +54,8 @@ export default function Schedule() {
     .sort((a, b) => (a.requestedAt?.seconds || 0) - (b.requestedAt?.seconds || 0));
 
   const completed = matches
-    .filter(m => m.status === 'completed')
-    .sort((a, b) => (b.completedAt?.seconds || 0) - (a.completedAt?.seconds || 0));
+    .filter(m => m.status === 'completed' || m.status === 'cancelled')
+    .sort((a, b) => (b.completedAt?.seconds || b.declinedAt?.seconds || 0) - (a.completedAt?.seconds || a.declinedAt?.seconds || 0));
 
   const filterStyle = (f) => ({
     padding: '8px 18px', borderRadius: 20, border: 'none', cursor: 'pointer',
@@ -71,7 +66,7 @@ export default function Schedule() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#0f1f0f', padding: 40, fontSize: 14, color: '#4a7a4a' }}>
-      Loading...
+      Yükleniyor...
     </div>
   );
 
@@ -123,8 +118,8 @@ export default function Schedule() {
                 return (
                   <div key={match.id} style={{
                     borderRadius: 12, border: '1px solid',
-                    borderColor: match.status === 'completed' ? '#2e4a2e' : match.woRequested ? '#cc000044' : '#1e3a1e',
-                    background: match.status === 'completed' ? '#0f2a0f' : match.woRequested ? '#2a0f0f' : '#131f13',
+                    borderColor: match.status === 'cancelled' ? '#6a2a2a' : match.status === 'completed' ? '#2e4a2e' : match.woRequested ? '#cc000044' : '#1e3a1e',
+                    background: match.status === 'cancelled' ? '#1a0f0f' : match.status === 'completed' ? '#0f2a0f' : match.woRequested ? '#2a0f0f' : '#131f13',
                     overflow: 'hidden',
                   }}>
 
@@ -149,7 +144,7 @@ export default function Schedule() {
                           </div>
                           <div style={{ fontSize: 13, color: '#8bc34a', fontWeight: 600 }}>🕐 {scheduled.time}</div>
                           {match.woRequested && (
-                            <div style={{ fontSize: 11, color: '#ff6b6b', marginTop: 6, fontWeight: 600 }}>🔴 WO requested</div>
+                            <div style={{ fontSize: 11, color: '#ff6b6b', marginTop: 6, fontWeight: 600 }}>🔴 WO talep edildi</div>
                           )}
                         </div>
                       </div>
@@ -174,17 +169,31 @@ export default function Schedule() {
                     {filter === 'completed' && (
                       <div style={{ padding: '18px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#162a16', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-                            ✅
+                          <div style={{ width: 40, height: 40, borderRadius: '50%', background: match.status === 'cancelled' ? '#2a0f0f' : '#162a16', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                            {match.status === 'cancelled' ? '❌' : '✅'}
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>
-                              {match.fromTeamName}
-                              <span style={{ color: '#4a7a4a', fontWeight: 400, margin: '0 10px', fontSize: 13 }}>vs</span>
-                              {match.toTeamName}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                              <div style={{ fontSize: 15, fontWeight: 700 }}>
+                                {match.fromTeamName}
+                                <span style={{ color: '#4a7a4a', fontWeight: 400, margin: '0 10px', fontSize: 13 }}>vs</span>
+                                {match.toTeamName}
+                              </div>
+                              {match.status === 'cancelled' && (
+                                <div style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: '#2a0f0f', color: '#ff6b6b', border: '1px solid #6a2a2a' }}>
+                                  İptal
+                                </div>
+                              )}
+                              {result?.isWO && (
+                                <div style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: '#2a1a0f', color: '#e09040', border: '1px solid #6a4a2a' }}>
+                                  WO
+                                </div>
+                              )}
                             </div>
 
-                            {result ? (
+                            {match.status === 'cancelled' ? (
+                              <div style={{ fontSize: 12, color: '#4a7a4a' }}>Bu maç iptal edildi.</div>
+                            ) : result ? (
                               <div style={{ background: '#162a16', borderRadius: 10, padding: '12px 16px', border: '1px solid #2e4a2e' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                                   <div style={{ fontSize: 16 }}>🏆</div>
