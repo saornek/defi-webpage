@@ -8,6 +8,7 @@ export default function AddMatchPanel({ teams, onSuccess }) {
   const [matchDate, setMatchDate] = useState('');
   const [matchHour, setMatchHour] = useState('');
   const [matchMin, setMatchMin] = useState('');
+  const [matchStatus, setMatchStatus] = useState('completed');
   const [set1, setSet1] = useState({ team1: '', team2: '' });
   const [set2, setSet2] = useState({ team1: '', team2: '' });
   const [set3, setSet3] = useState({ team1: '', team2: '' });
@@ -59,73 +60,97 @@ export default function AddMatchPanel({ teams, onSuccess }) {
   }
 
   async function handleSave() {
-    if (!team1Id || !team2Id) { setError('Please select both teams.'); return; }
-    if (team1Id === team2Id) { setError('Teams must be different.'); return; }
-    if (!matchDate) { setError('Please set a match date.'); return; }
-    if (!matchHour || !matchMin) { setError('Please set a match time.'); return; }
-    if (!set1.team1 || !set1.team2) { setError('Please enter Set 1 scores.'); return; }
-    if (!set2.team1 || !set2.team2) { setError('Please enter Set 2 scores.'); return; }
-    if (isTiebreak && (!set3.team1 || !set3.team2)) { setError('Please enter tiebreak scores.'); return; }
-    if (!winnerId) { setError('Please select the winner.'); return; }
+    if (!team1Id || !team2Id) { setError('Lütfen iki takım seçin.'); return; }
+    if (team1Id === team2Id) { setError('Takımlar farklı olmalı.'); return; }
+    if (!matchDate) { setError('Lütfen maç tarihi girin.'); return; }
+
+    if (matchStatus === 'completed') {
+      if (!set1.team1 || !set1.team2) { setError('Lütfen 1. set skorunu girin.'); return; }
+      if (!set2.team1 || !set2.team2) { setError('Lütfen 2. set skorunu girin.'); return; }
+      if (isTiebreak && (!set3.team1 || !set3.team2)) { setError('Lütfen tiebreak skorunu girin.'); return; }
+      if (!winnerId) { setError('Lütfen kazananı seçin.'); return; }
+    }
 
     setSaving(true);
     setError('');
 
-    const scheduledAt = new Date(matchDate + 'T' + matchHour + ':' + matchMin);
-    let score = set1.team1 + '-' + set1.team2 + ', ' + set2.team1 + '-' + set2.team2;
-    if (isTiebreak) score += ', ' + set3.team1 + '-' + set3.team2 + ' (TB)';
-    const loserId = winnerId === team1Id ? team2Id : team1Id;
+    const scheduledAt = matchDate ? new Date(matchDate + 'T' + (matchHour || '12') + ':' + (matchMin || '00')) : null;
 
     try {
-      const matchRef = await addDoc(collection(db, 'matchRequests'), {
-        fromTeamId: team1Id,
-        fromTeamName: team1.name,
-        toTeamId: team2Id,
-        toTeamName: team2.name,
-        status: 'completed',
-        scheduledAt,
-        requestedAt: serverTimestamp(),
-        completedAt: serverTimestamp(),
-        createdByAdmin: true,
-        woRequested: false,
-        expiresAt: null,
-      });
+      if (matchStatus === 'cancelled') {
+        await addDoc(collection(db, 'matchRequests'), {
+          fromTeamId: team1Id,
+          fromTeamName: team1.name,
+          toTeamId: team2Id,
+          toTeamName: team2.name,
+          status: 'cancelled',
+          scheduledAt,
+          requestedAt: serverTimestamp(),
+          completedAt: serverTimestamp(),
+          createdByAdmin: true,
+          woRequested: false,
+          expiresAt: null,
+        });
+        await addDoc(collection(db, 'auditLog'), {
+          action: 'admin_match_created', actor: 'admin',
+          payload: { team1: team1.name, team2: team2.name, status: 'cancelled' },
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        let score = set1.team1 + '-' + set1.team2 + ', ' + set2.team1 + '-' + set2.team2;
+        if (isTiebreak) score += ', ' + set3.team1 + '-' + set3.team2 + ' (TB)';
+        const loserId = winnerId === team1Id ? team2Id : team1Id;
 
-      await addDoc(collection(db, 'results'), {
-        matchId: matchRef.id,
-        fromTeamId: team1Id,
-        toTeamId: team2Id,
-        fromTeamName: team1.name,
-        toTeamName: team2.name,
-        score, winnerId, loserId,
-        enteredAt: serverTimestamp(),
-        createdByAdmin: true,
-      });
+        const matchRef = await addDoc(collection(db, 'matchRequests'), {
+          fromTeamId: team1Id,
+          fromTeamName: team1.name,
+          toTeamId: team2Id,
+          toTeamName: team2.name,
+          status: 'completed',
+          scheduledAt,
+          requestedAt: serverTimestamp(),
+          completedAt: serverTimestamp(),
+          createdByAdmin: true,
+          woRequested: false,
+          expiresAt: null,
+        });
 
-      await addDoc(collection(db, 'matchHistory'), {
-        team1Id, team2Id,
-        team1Name: team1.name,
-        team2Name: team2.name,
-        winnerId, loserId, score,
-        playedAt: serverTimestamp(),
-      });
+        await addDoc(collection(db, 'results'), {
+          matchId: matchRef.id,
+          fromTeamId: team1Id,
+          toTeamId: team2Id,
+          fromTeamName: team1.name,
+          toTeamName: team2.name,
+          score, winnerId, loserId,
+          enteredAt: serverTimestamp(),
+          createdByAdmin: true,
+        });
 
-      await recalculateLadder(winnerId, loserId, team1Id);
+        await addDoc(collection(db, 'matchHistory'), {
+          team1Id, team2Id,
+          team1Name: team1.name,
+          team2Name: team2.name,
+          winnerId, loserId, score,
+          playedAt: serverTimestamp(),
+        });
 
-      await addDoc(collection(db, 'auditLog'), {
-        action: 'admin_match_created', actor: 'admin', targetId: matchRef.id,
-        payload: { team1: team1.name, team2: team2.name, score, winner: winnerId === team1Id ? team1.name : team2.name },
-        createdAt: serverTimestamp(),
-      });
+        await recalculateLadder(winnerId, loserId, team1Id);
+
+        await addDoc(collection(db, 'auditLog'), {
+          action: 'admin_match_created', actor: 'admin',
+          payload: { team1: team1.name, team2: team2.name, score, winner: winnerId === team1Id ? team1.name : team2.name },
+          createdAt: serverTimestamp(),
+        });
+      }
 
       setTeam1Id(''); setTeam2Id(''); setMatchDate(''); setMatchHour(''); setMatchMin('');
       setSet1({ team1: '', team2: '' }); setSet2({ team1: '', team2: '' }); setSet3({ team1: '', team2: '' });
-      setWinnerId('');
-      setSuccess('Match created and ladder updated!');
+      setWinnerId(''); setMatchStatus('completed');
+      setSuccess(matchStatus === 'cancelled' ? 'İptal edilmiş maç eklendi!' : 'Maç oluşturuldu ve sıralama güncellendi!');
       setTimeout(() => { setSuccess(''); if (onSuccess) onSuccess(); }, 2000);
     } catch (err) {
       console.error(err);
-      setError('Something went wrong. Please try again.');
+      setError('Bir hata oluştu. Lütfen tekrar deneyin.');
     }
     setSaving(false);
   }
@@ -164,22 +189,36 @@ export default function AddMatchPanel({ teams, onSuccess }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
         <div>
-          {lbl('Teams')}
+          {lbl('Maç durumu')}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div onClick={() => setMatchStatus('completed')}
+              style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid', borderColor: matchStatus === 'completed' ? '#8bc34a' : '#2e4a2e', background: matchStatus === 'completed' ? '#162a16' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600 }}>
+              ✅ Tamamlandı
+            </div>
+            <div onClick={() => setMatchStatus('cancelled')}
+              style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid', borderColor: matchStatus === 'cancelled' ? '#ff6b6b' : '#2e4a2e', background: matchStatus === 'cancelled' ? '#2a0f0f' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600, color: matchStatus === 'cancelled' ? '#ff6b6b' : '#fff' }}>
+              ❌ İptal
+            </div>
+          </div>
+        </div>
+
+        <div>
+          {lbl('Takımlar')}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <select value={team1Id} onChange={e => { setTeam1Id(e.target.value); setWinnerId(''); }} style={{ ...selectStyle, flex: 1 }}>
-              <option value="">Team 1...</option>
+              <option value="">Takım 1...</option>
               {teams.map(t => (
                 <option key={t.id} value={t.id} disabled={t.id === team2Id}>
-                  #{t.position} {t.name}{t.status !== 'active' ? ' (passive)' : ''}
+                  #{t.position} {t.name}{t.status !== 'active' ? ' (pasif)' : ''}
                 </option>
               ))}
             </select>
             <div style={{ color: '#4a7a4a', fontWeight: 700, flexShrink: 0 }}>vs</div>
             <select value={team2Id} onChange={e => { setTeam2Id(e.target.value); setWinnerId(''); }} style={{ ...selectStyle, flex: 1 }}>
-              <option value="">Team 2...</option>
+              <option value="">Takım 2...</option>
               {teams.map(t => (
                 <option key={t.id} value={t.id} disabled={t.id === team1Id}>
-                  #{t.position} {t.name}{t.status !== 'active' ? ' (passive)' : ''}
+                  #{t.position} {t.name}{t.status !== 'active' ? ' (pasif)' : ''}
                 </option>
               ))}
             </select>
@@ -188,79 +227,83 @@ export default function AddMatchPanel({ teams, onSuccess }) {
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ flex: 2, minWidth: 130 }}>
-            {lbl('Date')}
+            {lbl('Tarih')}
             <input type="date" value={matchDate} onChange={e => setMatchDate(e.target.value)} style={inputStyle} />
           </div>
           <div style={{ flex: 1, minWidth: 80 }}>
-            {lbl('Hour')}
+            {lbl('Saat')}
             <select value={matchHour} onChange={e => setMatchHour(e.target.value)} style={selectStyle}>
-              <option value="">HH</option>
+              <option value="">SS</option>
               {Array.from({ length: 24 }, (_, i) => (
                 <option key={i} value={String(i).padStart(2, '0')}>{String(i).padStart(2, '0')}</option>
               ))}
             </select>
           </div>
           <div style={{ flex: 1, minWidth: 80 }}>
-            {lbl('Min')}
+            {lbl('Dakika')}
             <select value={matchMin} onChange={e => setMatchMin(e.target.value)} style={selectStyle}>
-              <option value="">MM</option>
+              <option value="">DD</option>
               {['00', '15', '30', '45'].map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
         </div>
 
-        <div>
-          {lbl('Scores — max 2 sets, tiebreak if 1-1')}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 70, fontSize: 11, color: '#4a7a4a', fontWeight: 600 }}>SET 1</div>
-              <input type="number" min="0" max="7" value={set1.team1} onChange={e => setSet1({ ...set1, team1: e.target.value })} style={scoreInput(false)} />
-              <div style={{ color: '#2e4a2e', fontWeight: 700 }}>—</div>
-              <input type="number" min="0" max="7" value={set1.team2} onChange={e => setSet1({ ...set1, team2: e.target.value })} style={scoreInput(false)} />
-              {set1Winner() && <div style={{ fontSize: 11, color: '#8bc34a', fontWeight: 600 }}>{set1Winner() === 'team1' ? team1?.name : team2?.name} wins</div>}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 70, fontSize: 11, color: set1Winner() ? '#4a7a4a' : '#2e4a2e', fontWeight: 600 }}>SET 2</div>
-              <input type="number" min="0" max="7" value={set2.team1} onChange={e => setSet2({ ...set2, team1: e.target.value })} disabled={!set1Winner()} style={scoreInput(!set1Winner())} />
-              <div style={{ color: '#2e4a2e', fontWeight: 700 }}>—</div>
-              <input type="number" min="0" max="7" value={set2.team2} onChange={e => setSet2({ ...set2, team2: e.target.value })} disabled={!set1Winner()} style={scoreInput(!set1Winner())} />
-              {set2Winner() && <div style={{ fontSize: 11, color: '#8bc34a', fontWeight: 600 }}>{set2Winner() === 'team1' ? team1?.name : team2?.name} wins</div>}
-            </div>
-            {isTiebreak && (
-              <div>
-                <div style={{ padding: '6px 10px', background: '#1a2a0f', borderRadius: 6, border: '1px solid #4a5a2a', marginBottom: 8, fontSize: 11, color: '#c8e64a' }}>
-                  ⚡ Tied 1-1 — enter tiebreak (first to 10)
+        {matchStatus === 'completed' && (
+          <>
+            <div>
+              {lbl('Skorlar — max 2 set, 1-1 beraberlikte tiebreak')}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 70, fontSize: 11, color: '#4a7a4a', fontWeight: 600 }}>SET 1</div>
+                  <input type="number" min="0" max="7" value={set1.team1} onChange={e => setSet1({ ...set1, team1: e.target.value })} style={scoreInput(false)} />
+                  <div style={{ color: '#2e4a2e', fontWeight: 700 }}>—</div>
+                  <input type="number" min="0" max="7" value={set1.team2} onChange={e => setSet1({ ...set1, team2: e.target.value })} style={scoreInput(false)} />
+                  {set1Winner() && <div style={{ fontSize: 11, color: '#8bc34a', fontWeight: 600 }}>{set1Winner() === 'team1' ? team1?.name : team2?.name} kazandı</div>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 70, fontSize: 11, color: '#c8e64a', fontWeight: 600 }}>TB</div>
-                  <input type="number" min="0" max="10" value={set3.team1} onChange={e => setSet3({ ...set3, team1: e.target.value })} style={{ ...scoreInput(false), borderColor: '#4a5a2a' }} />
+                  <div style={{ width: 70, fontSize: 11, color: set1Winner() ? '#4a7a4a' : '#2e4a2e', fontWeight: 600 }}>SET 2</div>
+                  <input type="number" min="0" max="7" value={set2.team1} onChange={e => setSet2({ ...set2, team1: e.target.value })} disabled={!set1Winner()} style={scoreInput(!set1Winner())} />
                   <div style={{ color: '#2e4a2e', fontWeight: 700 }}>—</div>
-                  <input type="number" min="0" max="10" value={set3.team2} onChange={e => setSet3({ ...set3, team2: e.target.value })} style={{ ...scoreInput(false), borderColor: '#4a5a2a' }} />
+                  <input type="number" min="0" max="7" value={set2.team2} onChange={e => setSet2({ ...set2, team2: e.target.value })} disabled={!set1Winner()} style={scoreInput(!set1Winner())} />
+                  {set2Winner() && <div style={{ fontSize: 11, color: '#8bc34a', fontWeight: 600 }}>{set2Winner() === 'team1' ? team1?.name : team2?.name} kazandı</div>}
+                </div>
+                {isTiebreak && (
+                  <div>
+                    <div style={{ padding: '6px 10px', background: '#1a2a0f', borderRadius: 6, border: '1px solid #4a5a2a', marginBottom: 8, fontSize: 11, color: '#c8e64a' }}>
+                      ⚡ 1-1 beraberlik — tiebreak (ilk 10 puana)
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 70, fontSize: 11, color: '#c8e64a', fontWeight: 600 }}>TB</div>
+                      <input type="number" min="0" max="10" value={set3.team1} onChange={e => setSet3({ ...set3, team1: e.target.value })} style={{ ...scoreInput(false), borderColor: '#4a5a2a' }} />
+                      <div style={{ color: '#2e4a2e', fontWeight: 700 }}>—</div>
+                      <input type="number" min="0" max="10" value={set3.team2} onChange={e => setSet3({ ...set3, team2: e.target.value })} style={{ ...scoreInput(false), borderColor: '#4a5a2a' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {team1 && team2 && (
+              <div>
+                {lbl('Kazanan')}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div onClick={() => setWinnerId(team1Id)}
+                    style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid', borderColor: winnerId === team1Id ? '#8bc34a' : '#2e4a2e', background: winnerId === team1Id ? '#162a16' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 700 }}>
+                    {winnerId === team1Id && '🏆 '}{team1.name}
+                  </div>
+                  <div onClick={() => setWinnerId(team2Id)}
+                    style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid', borderColor: winnerId === team2Id ? '#8bc34a' : '#2e4a2e', background: winnerId === team2Id ? '#162a16' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 700 }}>
+                    {winnerId === team2Id && '🏆 '}{team2.name}
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-        </div>
-
-        {team1 && team2 && (
-          <div>
-            {lbl('Winner')}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div onClick={() => setWinnerId(team1Id)}
-                style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid', borderColor: winnerId === team1Id ? '#8bc34a' : '#2e4a2e', background: winnerId === team1Id ? '#162a16' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 700 }}>
-                {winnerId === team1Id && '🏆 '}{team1.name}
-              </div>
-              <div onClick={() => setWinnerId(team2Id)}
-                style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid', borderColor: winnerId === team2Id ? '#8bc34a' : '#2e4a2e', background: winnerId === team2Id ? '#162a16' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 700 }}>
-                {winnerId === team2Id && '🏆 '}{team2.name}
-              </div>
-            </div>
-          </div>
+          </>
         )}
 
         <button onClick={handleSave} disabled={saving}
-          style={{ width: '100%', padding: 12, borderRadius: 10, border: 'none', background: '#8bc34a', color: '#0f1f0f', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          {saving ? 'Saving...' : 'Create match & update ladder'}
+          style={{ width: '100%', padding: 12, borderRadius: 10, border: 'none', background: matchStatus === 'cancelled' ? '#cc0000' : '#8bc34a', color: matchStatus === 'cancelled' ? '#fff' : '#0f1f0f', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {saving ? 'Kaydediliyor...' : matchStatus === 'cancelled' ? 'İptal edilmiş maçı kaydet' : 'Maçı oluştur ve sıralamayı güncelle'}
         </button>
       </div>
     </div>
