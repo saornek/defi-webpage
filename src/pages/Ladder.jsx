@@ -22,7 +22,7 @@ export default function Ladder() {
 
         <div style={{ paddingTop: 48, paddingBottom: 32, borderBottom: '1px solid #1e3a1e', textAlign: 'center' }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', color: '#4caf50', marginBottom: 8, textTransform: 'uppercase' }}>
-            Dalyan Club
+          Double ve Mix 
           </div>
           <h1 style={{ fontSize: 56, fontWeight: 800, margin: '0 0 24px 0', lineHeight: 1 }}>
             Biz Bize <span style={{ color: '#8bc34a' }}>Defi 2026</span>
