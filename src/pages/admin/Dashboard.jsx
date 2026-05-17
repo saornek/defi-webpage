@@ -440,8 +440,15 @@ export default function Dashboard() {
                           {match.scheduledAt && <div style={{ fontSize: 12, color: '#8bc34a', marginBottom: 4 }}>📅 {formatDate(match.scheduledAt)}</div>}
                           {match.expiresAt && <div style={{ fontSize: 12, color: '#e09040', marginBottom: 4 }}>⏰ Son tarih: {formatDate(match.expiresAt)}</div>}
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-                            <div style={statusBadge(match.status)}>{match.status}</div>
-                            {match.woRequested && <div style={statusBadge('cancelled')}>WO talep edildi</div>}
+                            {match.woRequested && match.status === 'completed'
+                              ? <div style={statusBadge('declined')}>WO</div>
+                              : <div style={statusBadge(match.status)}>
+                                  {match.status === 'completed' ? 'Tamamlandı' : match.status === 'cancelled' ? 'İptal' : match.status === 'pending' ? 'Bekliyor' : match.status === 'accepted' ? 'Kabul edildi' : match.status}
+                                </div>
+                            }
+                            {match.woRequested && match.status !== 'completed' && (
+                              <div style={statusBadge('cancelled')}>WO talep edildi</div>
+                            )}
                             {match.postponed && <div style={{ ...statusBadge('pending'), color: '#8888ff' }}>Ertelendi</div>}
                           </div>
                         </div>
