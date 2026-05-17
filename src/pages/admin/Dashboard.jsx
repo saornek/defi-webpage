@@ -63,20 +63,20 @@ export default function Dashboard() {
         payload: { name: newTeamName.trim() }, createdAt: serverTimestamp(),
       });
       setNewTeamName('');
-      flash('Team added.');
-    } catch { flash('Failed to add team.', true); }
+      flash('Takım eklendi.');
+    } catch { flash('Takım eklenemedi.', true); }
   }
 
   async function handleDeleteTeam(team) {
-    if (!window.confirm('Delete ' + team.name + '? This cannot be undone.')) return;
+    if (!window.confirm(team.name + ' silinsin mi? Bu işlem geri alınamaz.')) return;
     try {
       await deleteDoc(doc(db, 'teams', team.id));
       await addDoc(collection(db, 'auditLog'), {
         action: 'team_deleted', actor: 'admin', targetId: team.id,
         payload: { name: team.name }, createdAt: serverTimestamp(),
       });
-      flash('Team deleted.');
-    } catch { flash('Failed to delete team.', true); }
+      flash('Takım silindi.');
+    } catch { flash('Takım silinemedi.', true); }
   }
 
   async function handleToggleStatus(team) {
@@ -87,7 +87,7 @@ export default function Dashboard() {
         action: 'team_status_changed', actor: 'admin', targetId: team.id,
         payload: { name: team.name, from: team.status, to: newStatus }, createdAt: serverTimestamp(),
       });
-    } catch { flash('Failed to update status.', true); }
+    } catch { flash('Durum güncellenemedi.', true); }
   }
 
   async function handleSaveTeam() {
@@ -101,8 +101,8 @@ export default function Dashboard() {
         payload: { name: editingTeam.name, position: editingTeam.position }, createdAt: serverTimestamp(),
       });
       setEditingTeam(null);
-      flash('Team updated.');
-    } catch { flash('Failed to update team.', true); }
+      flash('Takım güncellendi.');
+    } catch { flash('Takım güncellenemedi.', true); }
   }
 
   async function handleSaveMatch() {
@@ -113,21 +113,50 @@ export default function Dashboard() {
         updates.scheduledAt = new Date(editingMatch.scheduledDate + 'T' + editingMatch.scheduledHour + ':' + editingMatch.scheduledMin);
       }
       if (editingMatch.expiresDate) updates.expiresAt = new Date(editingMatch.expiresDate);
+      if (editingMatch.isWO) updates.woRequested = true;
+
       await updateDoc(doc(db, 'matchRequests', editingMatch.id), updates);
+
       if (editingMatch.status === 'cancelled') {
         await updateDoc(doc(db, 'teams', editingMatch.fromTeamId), { activeChallenge: null });
         await updateDoc(doc(db, 'teams', editingMatch.toTeamId), { activeChallenge: null });
       }
+
+      if (editingMatch.isWO && editingMatch.woWinnerId && editingMatch.status === 'completed') {
+        const loserId = editingMatch.woWinnerId === editingMatch.fromTeamId ? editingMatch.toTeamId : editingMatch.fromTeamId;
+        const winnerName = editingMatch.woWinnerId === editingMatch.fromTeamId ? editingMatch.fromTeamName : editingMatch.toTeamName;
+        const loserName = loserId === editingMatch.fromTeamId ? editingMatch.fromTeamName : editingMatch.toTeamName;
+        await addDoc(collection(db, 'results'), {
+          matchId: editingMatch.id,
+          fromTeamId: editingMatch.fromTeamId,
+          toTeamId: editingMatch.toTeamId,
+          fromTeamName: editingMatch.fromTeamName,
+          toTeamName: editingMatch.toTeamName,
+          score: '6-0, 6-0',
+          winnerId: editingMatch.woWinnerId,
+          loserId,
+          isWO: true,
+          enteredAt: serverTimestamp(),
+        });
+        await updateDoc(doc(db, 'teams', editingMatch.fromTeamId), { activeChallenge: null });
+        await updateDoc(doc(db, 'teams', editingMatch.toTeamId), { activeChallenge: null });
+        await addDoc(collection(db, 'auditLog'), {
+          action: 'wo_applied', actor: 'admin', targetId: editingMatch.id,
+          payload: { winner: winnerName, loser: loserName, score: '6-0, 6-0' },
+          createdAt: serverTimestamp(),
+        });
+      }
+
       await addDoc(collection(db, 'auditLog'), {
         action: 'match_edited', actor: 'admin', targetId: editingMatch.id,
-        payload: { from: editingMatch.fromTeamName, to: editingMatch.toTeamName, status: editingMatch.status },
+        payload: { from: editingMatch.fromTeamName, to: editingMatch.toTeamName, status: editingMatch.status, isWO: editingMatch.isWO || false },
         createdAt: serverTimestamp(),
       });
       setEditingMatch(null);
-      flash('Match updated.');
+      flash('Maç güncellendi.');
     } catch (err) {
       console.error(err);
-      flash('Failed to update match.', true);
+      flash('Maç güncellenemedi.', true);
     }
   }
 
@@ -142,14 +171,14 @@ export default function Dashboard() {
         payload: { score: editingResult.score }, createdAt: serverTimestamp(),
       });
       setEditingResult(null);
-      flash('Result updated.');
-    } catch { flash('Failed to update result.', true); }
+      flash('Sonuç güncellendi.');
+    } catch { flash('Sonuç güncellenemedi.', true); }
   }
 
   function formatDate(ts) {
     if (!ts) return '—';
     const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
   function tsToInputDate(ts) {
@@ -217,7 +246,7 @@ export default function Dashboard() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#0f1f0f', padding: 40, fontSize: 14, color: '#4a7a4a' }}>
-      Loading...
+      Yükleniyor...
     </div>
   );
 
@@ -227,14 +256,14 @@ export default function Dashboard() {
 
         <div style={{ paddingTop: 40, paddingBottom: 24, borderBottom: '1px solid #1e3a1e' }}>
           <a href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#8bc34a', textDecoration: 'none', fontWeight: 600, marginBottom: 16 }}>
-            ← Back to ladder
+            ← Sıralamalara geri dön
           </a>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <div style={{ fontSize: 11, color: '#4caf50', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>Admin panel</div>
-              <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>Tennis <span style={{ color: '#8bc34a' }}>Dashboard</span></h1>
+              <div style={{ fontSize: 11, color: '#4caf50', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>Admin paneli</div>
+              <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0 }}>Tenis <span style={{ color: '#8bc34a' }}>Yönetim</span></h1>
             </div>
-            <button onClick={handleLogout} style={btn(null, true)}>Sign out</button>
+            <button onClick={handleLogout} style={btn(null, true)}>Çıkış yap</button>
           </div>
         </div>
 
@@ -244,7 +273,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: 4, padding: '20px 0', borderBottom: '1px solid #1e3a1e' }}>
           {['teams', 'matches', 'results', 'wo', 'audit'].map(t => (
             <button key={t} onClick={() => setTab(t)} style={tabStyle(t)}>
-              {t === 'wo' ? 'WO' : t}
+              {t === 'wo' ? 'WO' : t === 'teams' ? 'Takımlar' : t === 'matches' ? 'Maçlar' : t === 'results' ? 'Sonuçlar' : 'Kayıtlar'}
             </button>
           ))}
         </div>
@@ -255,9 +284,9 @@ export default function Dashboard() {
             <div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                 <input value={newTeamName} onChange={e => setNewTeamName(e.target.value)}
-                  placeholder="New team name" style={{ ...inputStyle, flex: 1, width: 'auto' }}
+                  placeholder="Yeni takım adı" style={{ ...inputStyle, flex: 1, width: 'auto' }}
                   onKeyDown={e => e.key === 'Enter' && handleAddTeam()} />
-                <button onClick={handleAddTeam} style={btn()}>Add team</button>
+                <button onClick={handleAddTeam} style={btn()}>Takım ekle</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {teams.map(team => (
@@ -267,9 +296,9 @@ export default function Dashboard() {
                         <input value={editingTeam.name} onChange={e => setEditingTeam({ ...editingTeam, name: e.target.value })}
                           style={{ ...inputStyle, flex: 1, minWidth: 120 }} />
                         <input value={editingTeam.position} onChange={e => setEditingTeam({ ...editingTeam, position: e.target.value })}
-                          type="number" placeholder="Pos" style={{ ...inputStyle, width: 70 }} />
-                        <button onClick={handleSaveTeam} style={btn()}>Save</button>
-                        <button onClick={() => setEditingTeam(null)} style={btn(null, true)}>Cancel</button>
+                          type="number" placeholder="Sıra" style={{ ...inputStyle, width: 70 }} />
+                        <button onClick={handleSaveTeam} style={btn()}>Kaydet</button>
+                        <button onClick={() => setEditingTeam(null)} style={btn(null, true)}>İptal</button>
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -278,14 +307,16 @@ export default function Dashboard() {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 14, fontWeight: 600 }}>{team.name}</div>
-                          <div style={{ fontSize: 11, color: team.status === 'active' ? '#4caf50' : '#e09040', marginTop: 2, fontWeight: 600 }}>{team.status}</div>
+                          <div style={{ fontSize: 11, color: team.status === 'active' ? '#4caf50' : '#e09040', marginTop: 2, fontWeight: 600 }}>
+                            {team.status === 'active' ? 'Aktif' : 'Pasif'}
+                          </div>
                         </div>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <button onClick={() => setEditingTeam(team)} style={btn(null, true)}>Edit</button>
+                          <button onClick={() => setEditingTeam(team)} style={btn(null, true)}>Düzenle</button>
                           <button onClick={() => handleToggleStatus(team)} style={btn(team.status === 'active' ? '#e09040' : '#4caf50', true)}>
-                            {team.status === 'active' ? 'Set passive' : 'Set active'}
+                            {team.status === 'active' ? 'Pasife al' : 'Aktife al'}
                           </button>
-                          <button onClick={() => handleDeleteTeam(team)} style={btn('#cc0000')}>Delete</button>
+                          <button onClick={() => handleDeleteTeam(team)} style={btn('#cc0000')}>Sil</button>
                         </div>
                       </div>
                     )}
@@ -300,21 +331,21 @@ export default function Dashboard() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
                 <button onClick={() => { setShowAddMatch(!showAddMatch); setEditingMatch(null); }}
                   style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: showAddMatch ? '#2e4a2e' : '#8bc34a', color: showAddMatch ? '#4a7a4a' : '#0f1f0f', fontSize: 12, fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {showAddMatch ? '✕ Cancel' : '+ Add match'}
+                  {showAddMatch ? '✕ İptal' : '+ Maç ekle'}
                 </button>
               </div>
 
               {showAddMatch && (
                 <div style={{ marginBottom: 24, padding: '20px', borderRadius: 12, border: '1px solid #3a6a3a', background: '#0f2a0f' }}>
                   <div style={{ fontSize: 11, color: '#8bc34a', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
-                    Create match
+                    Maç oluştur
                   </div>
                   <AddMatchPanel teams={teams} onSuccess={() => setShowAddMatch(false)} />
                 </div>
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {matches.length === 0 && <div style={{ fontSize: 14, color: '#4a7a4a' }}>No matches yet.</div>}
+                {matches.length === 0 && <div style={{ fontSize: 14, color: '#4a7a4a' }}>Henüz maç yok.</div>}
                 {matches.map(match => (
                   <div key={match.id} style={{ borderRadius: 12, border: '1px solid #1e3a1e', background: '#131f13', overflow: 'hidden' }}>
                     {editingMatch?.id === match.id ? (
@@ -322,41 +353,76 @@ export default function Dashboard() {
                         <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 20, color: '#8bc34a' }}>
                           {match.fromTeamName} vs {match.toTeamName}
                         </div>
+
                         <div style={{ marginBottom: 14 }}>
-                          {lbl('Status')}
+                          {lbl('Durum')}
                           <select value={editingMatch.status} onChange={e => setEditingMatch({ ...editingMatch, status: e.target.value })} style={selectStyle}>
-                            <option value="pending">Pending</option>
-                            <option value="accepted">Accepted</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
+                            <option value="pending">Bekliyor</option>
+                            <option value="accepted">Kabul edildi</option>
+                            <option value="completed">Tamamlandı</option>
+                            <option value="cancelled">İptal</option>
                           </select>
                         </div>
+
                         <div style={{ marginBottom: 14 }}>
-                          {lbl('Match date')}
+                          {lbl('Walkover (WO)')}
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <div onClick={() => setEditingMatch({ ...editingMatch, isWO: false, woWinnerId: null })}
+                              style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid', borderColor: !editingMatch.isWO ? '#8bc34a' : '#2e4a2e', background: !editingMatch.isWO ? '#162a16' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600 }}>
+                              Normal maç
+                            </div>
+                            <div onClick={() => setEditingMatch({ ...editingMatch, isWO: true })}
+                              style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid', borderColor: editingMatch.isWO ? '#e09040' : '#2e4a2e', background: editingMatch.isWO ? '#2a1a0f' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600, color: editingMatch.isWO ? '#e09040' : '#fff' }}>
+                              ⚠ WO
+                            </div>
+                          </div>
+                        </div>
+
+                        {editingMatch.isWO && (
+                          <div style={{ marginBottom: 14 }}>
+                            {lbl('WO — kazanan takım')}
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <div onClick={() => setEditingMatch({ ...editingMatch, woWinnerId: editingMatch.fromTeamId })}
+                                style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid', borderColor: editingMatch.woWinnerId === editingMatch.fromTeamId ? '#8bc34a' : '#2e4a2e', background: editingMatch.woWinnerId === editingMatch.fromTeamId ? '#162a16' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600 }}>
+                                {editingMatch.woWinnerId === editingMatch.fromTeamId && '🏆 '}{editingMatch.fromTeamName}
+                              </div>
+                              <div onClick={() => setEditingMatch({ ...editingMatch, woWinnerId: editingMatch.toTeamId })}
+                                style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid', borderColor: editingMatch.woWinnerId === editingMatch.toTeamId ? '#8bc34a' : '#2e4a2e', background: editingMatch.woWinnerId === editingMatch.toTeamId ? '#162a16' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600 }}>
+                                {editingMatch.woWinnerId === editingMatch.toTeamId && '🏆 '}{editingMatch.toTeamName}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ marginBottom: 14 }}>
+                          {lbl('Maç tarihi')}
                           <input type="date" value={editingMatch.scheduledDate || ''} onChange={e => setEditingMatch({ ...editingMatch, scheduledDate: e.target.value })} style={inputStyle} />
                         </div>
+
                         <div style={{ marginBottom: 14 }}>
-                          {lbl('Match time (24hr)')}
+                          {lbl('Maç saati (24 saat)')}
                           <div style={{ display: 'flex', gap: 8 }}>
                             <select value={editingMatch.scheduledHour || ''} onChange={e => setEditingMatch({ ...editingMatch, scheduledHour: e.target.value })} style={{ ...selectStyle, flex: 1 }}>
-                              <option value="">Hour</option>
+                              <option value="">Saat</option>
                               {Array.from({ length: 24 }, (_, i) => (
                                 <option key={i} value={String(i).padStart(2, '0')}>{String(i).padStart(2, '0')}</option>
                               ))}
                             </select>
                             <select value={editingMatch.scheduledMin || ''} onChange={e => setEditingMatch({ ...editingMatch, scheduledMin: e.target.value })} style={{ ...selectStyle, flex: 1 }}>
-                              <option value="">Min</option>
+                              <option value="">Dakika</option>
                               {['00', '15', '30', '45'].map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                           </div>
                         </div>
+
                         <div style={{ marginBottom: 20 }}>
-                          {lbl('Expiry date (WO deadline)')}
+                          {lbl('Son tarih (WO süresi)')}
                           <input type="date" value={editingMatch.expiresDate || ''} onChange={e => setEditingMatch({ ...editingMatch, expiresDate: e.target.value })} style={inputStyle} />
                         </div>
+
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={handleSaveMatch} style={btn()}>Save changes</button>
-                          <button onClick={() => setEditingMatch(null)} style={btn(null, true)}>Cancel</button>
+                          <button onClick={handleSaveMatch} style={btn()}>Kaydet</button>
+                          <button onClick={() => setEditingMatch(null)} style={btn(null, true)}>İptal</button>
                         </div>
                       </div>
                     ) : (
@@ -368,15 +434,15 @@ export default function Dashboard() {
                             {match.toTeamName}
                           </div>
                           {match.createdByAdmin && (
-                            <div style={{ fontSize: 11, color: '#8bc34a', marginBottom: 4 }}>⚙ Created by admin</div>
+                            <div style={{ fontSize: 11, color: '#8bc34a', marginBottom: 4 }}>⚙ Admin tarafından oluşturuldu</div>
                           )}
-                          <div style={{ fontSize: 12, color: '#4a7a4a', marginBottom: 4 }}>Requested: {formatDate(match.requestedAt)}</div>
+                          <div style={{ fontSize: 12, color: '#4a7a4a', marginBottom: 4 }}>Talep: {formatDate(match.requestedAt)}</div>
                           {match.scheduledAt && <div style={{ fontSize: 12, color: '#8bc34a', marginBottom: 4 }}>📅 {formatDate(match.scheduledAt)}</div>}
-                          {match.expiresAt && <div style={{ fontSize: 12, color: '#e09040', marginBottom: 4 }}>⏰ Expires: {formatDate(match.expiresAt)}</div>}
+                          {match.expiresAt && <div style={{ fontSize: 12, color: '#e09040', marginBottom: 4 }}>⏰ Son tarih: {formatDate(match.expiresAt)}</div>}
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
                             <div style={statusBadge(match.status)}>{match.status}</div>
-                            {match.woRequested && <div style={statusBadge('cancelled')}>WO requested</div>}
-                            {match.postponed && <div style={{ ...statusBadge('pending'), color: '#8888ff' }}>Postponed</div>}
+                            {match.woRequested && <div style={statusBadge('cancelled')}>WO talep edildi</div>}
+                            {match.postponed && <div style={{ ...statusBadge('pending'), color: '#8888ff' }}>Ertelendi</div>}
                           </div>
                         </div>
                         <button onClick={() => {
@@ -387,8 +453,10 @@ export default function Dashboard() {
                             scheduledHour: tsToHour(match.scheduledAt),
                             scheduledMin: tsToMin(match.scheduledAt),
                             expiresDate: tsToInputDate(match.expiresAt),
+                            isWO: match.woRequested || false,
+                            woWinnerId: null,
                           });
-                        }} style={btn(null, true)}>Edit</button>
+                        }} style={btn(null, true)}>Düzenle</button>
                       </div>
                     )}
                   </div>
@@ -399,7 +467,7 @@ export default function Dashboard() {
 
           {tab === 'results' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {results.length === 0 && <div style={{ fontSize: 14, color: '#4a7a4a' }}>No results yet.</div>}
+              {results.length === 0 && <div style={{ fontSize: 14, color: '#4a7a4a' }}>Henüz sonuç yok.</div>}
               {results.map(result => (
                 <div key={result.id} style={{ padding: '16px 20px', borderRadius: 12, border: '1px solid #1e3a1e', background: '#131f13' }}>
                   {editingResult?.id === result.id ? (
@@ -408,12 +476,12 @@ export default function Dashboard() {
                         {result.fromTeamName} vs {result.toTeamName}
                       </div>
                       <div style={{ marginBottom: 14 }}>
-                        {lbl('Score')}
+                        {lbl('Skor')}
                         <input value={editingResult.score} onChange={e => setEditingResult({ ...editingResult, score: e.target.value })}
-                          placeholder="e.g. 6-4, 3-6, 10-7 (TB)" style={inputStyle} />
+                          placeholder="örn. 6-4, 3-6, 10-7 (TB)" style={inputStyle} />
                       </div>
                       <div style={{ marginBottom: 16 }}>
-                        {lbl('Winner')}
+                        {lbl('Kazanan')}
                         <div style={{ display: 'flex', gap: 8 }}>
                           <div onClick={() => setEditingResult({ ...editingResult, winnerId: result.fromTeamId })}
                             style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid', borderColor: editingResult.winnerId === result.fromTeamId ? '#8bc34a' : '#2e4a2e', background: editingResult.winnerId === result.fromTeamId ? '#162a16' : '#111f11', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600 }}>
@@ -426,8 +494,8 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={handleSaveResult} style={btn()}>Save</button>
-                        <button onClick={() => setEditingResult(null)} style={btn(null, true)}>Cancel</button>
+                        <button onClick={handleSaveResult} style={btn()}>Kaydet</button>
+                        <button onClick={() => setEditingResult(null)} style={btn(null, true)}>İptal</button>
                       </div>
                     </div>
                   ) : (
@@ -439,12 +507,12 @@ export default function Dashboard() {
                           {result.toTeamName}
                         </div>
                         <div style={{ fontSize: 13, color: '#8bc34a', fontWeight: 600, marginBottom: 2 }}>
-                          {result.score} {result.isWO && <span style={{ color: '#ff6b6b' }}>(WO)</span>}
+                          {result.score} {result.isWO && <span style={{ color: '#e09040' }}>(WO)</span>}
                           {result.createdByAdmin && <span style={{ color: '#4a7a4a', fontSize: 11, marginLeft: 6 }}>⚙ admin</span>}
                         </div>
-                        <div style={{ fontSize: 11, color: '#4a7a4a' }}>Entered: {formatDate(result.enteredAt)}</div>
+                        <div style={{ fontSize: 11, color: '#4a7a4a' }}>Girildi: {formatDate(result.enteredAt)}</div>
                       </div>
-                      <button onClick={() => setEditingResult(result)} style={btn(null, true)}>Edit</button>
+                      <button onClick={() => setEditingResult(result)} style={btn(null, true)}>Düzenle</button>
                     </div>
                   )}
                 </div>
@@ -456,7 +524,7 @@ export default function Dashboard() {
 
           {tab === 'audit' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {auditLog.length === 0 && <div style={{ fontSize: 14, color: '#4a7a4a' }}>No audit log entries yet.</div>}
+              {auditLog.length === 0 && <div style={{ fontSize: 14, color: '#4a7a4a' }}>Henüz kayıt yok.</div>}
               {auditLog.map(log => (
                 <div key={log.id} style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid #1e3a1e', background: '#131f13' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -464,7 +532,7 @@ export default function Dashboard() {
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#8bc34a', marginBottom: 2 }}>
                         {log.action.replace(/_/g, ' ')}
                       </div>
-                      <div style={{ fontSize: 12, color: '#4a7a4a', marginBottom: 4 }}>By: {log.actor}</div>
+                      <div style={{ fontSize: 12, color: '#4a7a4a', marginBottom: 4 }}>Tarafından: {log.actor}</div>
                       <div style={{ fontSize: 11, color: '#2e4a2e', fontFamily: 'monospace' }}>
                         {JSON.stringify(log.payload)}
                       </div>
