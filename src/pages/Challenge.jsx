@@ -91,6 +91,7 @@ export default function Challenge() {
         woRequestedAt: null,
       });
       await updateDoc(doc(db, 'teams', myTeam.id), { activeChallenge: 'pending' });
+      await updateDoc(doc(db, 'teams', selectedTarget.id), { activeChallenge: 'pending' });
       setSuccess(selectedTarget.name + ' takımına teklif gönderildi!');
       setView('success');
     } catch (err) {

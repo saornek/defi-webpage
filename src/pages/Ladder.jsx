@@ -84,7 +84,7 @@ export default function Ladder() {
                   alignItems: 'center',
                   gap: 16,
                   padding: '0 20px',
-                  height: team.status !== 'active' ? 72 : 64,
+                  height: team.status !== 'active' ? 72 : team.activeChallenge ? 72 : 64,
                   borderRadius: 10,
                   background: team.status !== 'active'
                     ? 'repeating-linear-gradient(45deg, #111f11, #111f11 6px, #141f14 6px, #141f14 12px)'
@@ -114,7 +114,7 @@ export default function Ladder() {
                     )}
                     {team.activeChallenge && team.status === 'active' && (
                       <div style={{ fontSize: 10, color: '#8bc34a', fontWeight: 500, textAlign: 'center' }}>
-                        ⚡ Aktif maç devam ediyor
+                        ⚡ Teklif edilen veya planlanan maç var
                       </div>
                     )}
                   </div>
