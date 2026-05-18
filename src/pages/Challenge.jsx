@@ -53,7 +53,7 @@ export default function Challenge() {
     if (!ts) return null;
     const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
     return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }) +
-      ' at ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+      ' saat ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   }
 
   function handleSelectMyTeam(team) {
@@ -94,7 +94,7 @@ export default function Challenge() {
       setSuccess(selectedTarget.name + ' takımına teklif gönderildi!');
       setView('success');
     } catch (err) {
-      setError('Bir hata oluștu. Lütfen tekrar deneyin.');
+      setError('Bir hata oluştu. Lütfen tekrar deneyin.');
     }
     setSending(false);
   }
@@ -128,10 +128,10 @@ export default function Challenge() {
       setMatchDate('');
       setMatchHour('');
       setMatchMin('');
-      setSuccess('Maç teklifi kabul edildi. Maç ' + formatScheduled({ seconds: scheduledAt.getTime() / 1000 }) + 'tarihinde oynanacak.');
+      setSuccess('Maç teklifi kabul edildi. Maç ' + formatScheduled({ seconds: scheduledAt.getTime() / 1000 }) + ' tarihinde oynanacak.');
       setView('success');
     } catch (err) {
-      setError('Bir hata oluștu. Lütfen tekrar deneyin.');
+      setError('Bir hata oluştu. Lütfen tekrar deneyin.');
     }
   }
 
@@ -154,7 +154,7 @@ export default function Challenge() {
       setSuccess('WO talebi gönderildi. Admin geri dönüş sağlayacaktır.');
       setView('success');
     } catch (err) {
-      setError('Bir hata oluștu. Lütfen tekrar deneyin.');
+      setError('Bir hata oluştu. Lütfen tekrar deneyin.');
     }
   }
 
@@ -228,7 +228,7 @@ export default function Challenge() {
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 13, color: '#4a7a4a', marginBottom: 6 }}>Match date</label>
+                <label style={{ display: 'block', fontSize: 13, color: '#4a7a4a', marginBottom: 6 }}>Maç Tarihi</label>
                 <input
                   type="date"
                   value={matchDate}
@@ -291,7 +291,7 @@ export default function Challenge() {
             <div>
 
               <div style={{ marginBottom: 20, padding: '16px', background: '#162a16', borderRadius: 10, border: '1px solid #2e4a2e' }}>
-                <div style={{ fontSize: 11, color: '#4caf50', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Playing as</div>
+                <div style={{ fontSize: 11, color: '#4caf50', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Oynayan takım</div>
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{myTeam.name} (#{myTeam.position})</div>
 
                 {myActiveChallenge ? (() => {
@@ -302,9 +302,9 @@ export default function Challenge() {
                   const daysLeft = 3 - days;
                   return (
                     <div>
-                      <div style={{ fontSize: 12, color: '#4a7a4a', marginBottom: 6 }}>Maçlarınız</div>
+                      <div style={{ fontSize: 12, color: '#4a7a4a', marginBottom: 6 }}>Aktif maçınız</div>
                       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                        {isSender ? 'Bir sonraki maçınız için seçtiğiniz takım:' : 'Sizinle maç yapmak isteyenler'} {opponent}
+                        {isSender ? 'Maç teklifini gönderdiğiniz takım:' : 'Size maç teklifi gönderen takım:'} {opponent}
                       </div>
                       <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, marginBottom: scheduled ? 8 : 0,
                         background: myActiveChallenge.status === 'accepted' ? '#0f2a0f' : '#1a2a0f',
@@ -323,12 +323,12 @@ export default function Challenge() {
                       )}
                       {myActiveChallenge.status === 'pending' && isSender && days >= 3 && !myActiveChallenge.woRequested && (
                         <div style={{ fontSize: 11, color: '#ff6b6b', marginTop: 6 }}>
-                          ⚠ Teklifiniz üzerinden {days} gün geçti — Aşağıdan WO talebi isteyebilirsiniz.
+                          ⚠ Teklifiniz üzerinden {days} gün geçti — aşağıdan WO talebi isteyebilirsiniz.
                         </div>
                       )}
                       {myActiveChallenge.status === 'pending' && isSender && days < 3 && (
                         <div style={{ fontSize: 11, color: '#e09040', marginTop: 6 }}>
-                          {opponent} tarih belirlemesi için kalan gün sayısı:{daysLeft}
+                          {opponent} tarih belirlemesi için kalan gün: {daysLeft}
                         </div>
                       )}
                       {myActiveChallenge.status === 'pending' && !isSender && (
@@ -351,20 +351,20 @@ export default function Challenge() {
               {pendingIncoming.length > 0 && (
                 <div style={{ marginBottom: 24 }}>
                   <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 10, color: '#8bc34a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Tekliflerin
+                    Gelen teklifler
                   </p>
                   {pendingIncoming.map(req => {
                     const days = daysSince(req.requestedAt);
                     const daysLeft = 3 - days;
                     return (
                       <div key={req.id} style={{ padding: '14px 16px', borderRadius: 10, border: '1px solid #3a6a3a', background: '#162a16', marginBottom: 8 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{req.fromTeamName} senle maç yapmak istiyor.</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{req.fromTeamName} seninle maç yapmak istiyor.</div>
                         <div style={{ fontSize: 12, color: daysLeft <= 1 ? '#ff6b6b' : '#e09040', marginBottom: 10 }}>
-                          ⚠ {daysLeft > 0 ? 'Maç tarihi belirlemen için ' + daysLeft + ' gün kaldı.' : 'Teklif süren doldu -  teklif eden takım WO talep edebilir.'}
+                          ⚠ {daysLeft > 0 ? 'Maç tarihi belirlemen için ' + daysLeft + ' gün kaldı.' : 'Teklif süresi doldu — teklif eden takım WO talep edebilir.'}
                         </div>
                         <button onClick={() => { setAcceptingRequest(req); setError(''); }}
                           style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#8bc34a', color: '#0f1f0f', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                          Set date & accept
+                          Tarih Belirle
                         </button>
                       </div>
                     );
@@ -383,12 +383,12 @@ export default function Challenge() {
                     return (
                       <div key={req.id} style={{ padding: '14px 16px', borderRadius: 10, border: '1px solid #2e4a2e', background: '#131f13', marginBottom: 8 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-                          Waiting for {req.toTeamName} to set a date
+                          {req.toTeamName} takımının tarih belirlemesi bekleniyor
                         </div>
                         <div style={{ fontSize: 12, color: days >= 3 ? '#ff6b6b' : '#4a7a4a', marginBottom: canRequestWO ? 10 : 0 }}>
                           {days === 0 ? 'Bugün gönderildi.' : days + ' gün önce gönderildi.'}
-                          {days >= 3 && !req.woRequested && ' — Teklif süren doldu'}
-                          {req.woRequested && ' — WO talep edildi,  admin incelemesi bekleniyor.'}
+                          {days >= 3 && !req.woRequested && ' — Teklif süresi doldu'}
+                          {req.woRequested && ' — WO talep edildi, admin incelemesi bekleniyor.'}
                         </div>
                         {canRequestWO && (
                           <button onClick={() => handleRequestWO(req)}
@@ -429,7 +429,7 @@ export default function Challenge() {
                 <div style={{ marginTop: 20 }}>
                   <button onClick={handleSendChallenge} disabled={sending}
                     style={{ width: '100%', padding: 14, borderRadius: 10, border: 'none', background: '#8bc34a', color: '#0f1f0f', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: sending ? 0.7 : 1, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    {sending ? 'Gönderiliyor...' : selectedTarget.name + ' takımına maç teklifi gönderiyorsunuz.'}
+                    {sending ? 'Gönderiliyor...' : selectedTarget.name + ' takımına maç teklifi gönder'}
                   </button>
                   <button onClick={() => { setMyTeam(null); setView('select-team'); setSelectedTarget(null); }}
                     style={{ width: '100%', marginTop: 8, padding: 12, borderRadius: 10, border: '1px solid #2e4a2e', background: 'transparent', fontSize: 13, cursor: 'pointer', color: '#4a7a4a' }}>

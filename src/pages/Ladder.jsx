@@ -22,42 +22,42 @@ export default function Ladder() {
 
         <div style={{ paddingTop: 48, paddingBottom: 32, borderBottom: '1px solid #1e3a1e', textAlign: 'center' }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.15em', color: '#4caf50', marginBottom: 8, textTransform: 'uppercase' }}>
-          Double ve Mix 
+            Double ve Mix
           </div>
           <h1 style={{ fontSize: 56, fontWeight: 800, margin: '0 0 24px 0', lineHeight: 1 }}>
             Biz Bize <span style={{ color: '#8bc34a' }}>Defi 2026</span>
           </h1>
-  <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-    <a href="/schedule" style={{
-    flex: 1, maxWidth: 200, textAlign: 'center',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '12px 8px', borderRadius: 6, background: 'transparent',
-    color: '#fff', fontSize: 13, fontWeight: 600,
-    textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.08em',
-    border: '1px solid #2e4a2e'
-  }}>
-    Takvim
-  </a>
-  <a href="/challenge" style={{
-    flex: 1, maxWidth: 200, textAlign: 'center',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '12px 8px', borderRadius: 6, background: '#8bc34a',
-    color: '#0f1f0f', fontSize: 13, fontWeight: 700,
-    textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.08em'
-  }}>
-    Maç Teklifi
-  </a>
-  <a href="/result" style={{
-    flex: 1, maxWidth: 200, textAlign: 'center',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '12px 8px', borderRadius: 6, background: 'transparent',
-    color: '#fff', fontSize: 13, fontWeight: 600,
-    textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.08em',
-    border: '1px solid #2e4a2e'
-  }}>
-    Sonuç Bildir
-  </a>
-</div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <a href="/schedule" style={{
+              flex: 1, maxWidth: 200, textAlign: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '12px 8px', borderRadius: 6, background: 'transparent',
+              color: '#fff', fontSize: 13, fontWeight: 600,
+              textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.08em',
+              border: '1px solid #2e4a2e'
+            }}>
+              Takvim
+            </a>
+            <a href="/challenge" style={{
+              flex: 1, maxWidth: 200, textAlign: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '12px 8px', borderRadius: 6, background: '#8bc34a',
+              color: '#0f1f0f', fontSize: 13, fontWeight: 700,
+              textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.08em'
+            }}>
+              Maç Teklifi
+            </a>
+            <a href="/result" style={{
+              flex: 1, maxWidth: 200, textAlign: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '12px 8px', borderRadius: 6, background: 'transparent',
+              color: '#fff', fontSize: 13, fontWeight: 600,
+              textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.08em',
+              border: '1px solid #2e4a2e'
+            }}>
+              Sonuç Bildir
+            </a>
+          </div>
         </div>
 
         <div style={{ paddingTop: 32 }}>
@@ -70,11 +70,11 @@ export default function Ladder() {
           </div>
 
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#4a7a4a', fontSize: 14 }}>Loading...</div>
+            <div style={{ padding: 40, textAlign: 'center', color: '#4a7a4a', fontSize: 14 }}>Yükleniyor...</div>
           ) : teams.length === 0 ? (
             <div style={{ padding: 60, textAlign: 'center' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
-              <div style={{ fontSize: 14, color: '#4a7a4a' }}>No teams yet</div>
+              <div style={{ fontSize: 14, color: '#4a7a4a' }}>Henüz takım yok</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -109,12 +109,12 @@ export default function Ladder() {
                     </div>
                     {team.status !== 'active' && (
                       <div style={{ fontSize: 10, color: '#e09040', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center' }}>
-                        ⏸ Passive — unavailable for challenges
+                        ⏸ Pasif — maç teklifine kapalı
                       </div>
                     )}
                     {team.activeChallenge && team.status === 'active' && (
                       <div style={{ fontSize: 10, color: '#8bc34a', fontWeight: 500, textAlign: 'center' }}>
-                        ⚡ Challenge in progress
+                        ⚡ Aktif maç devam ediyor
                       </div>
                     )}
                   </div>
@@ -122,7 +122,7 @@ export default function Ladder() {
                   <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                     {team.status !== 'active' && (
                       <div style={{ fontSize: 11, fontWeight: 700, color: '#e09040', background: '#e09040' + '22', padding: '3px 10px', borderRadius: 20, border: '1px solid #e09040' + '44', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        Passive
+                        Pasif
                       </div>
                     )}
                     {index === 0 && team.status === 'active' && (
@@ -139,7 +139,7 @@ export default function Ladder() {
 
         <div style={{ paddingTop: 40, paddingBottom: 40, marginTop: 32, borderTop: '1px solid #1e3a1e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 12, color: '#2e4a2e' }}>Canlı güncellemelerle sizlerle</div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4}}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
             <a href="/login" style={{ fontSize: 12, color: '#2e4a2e', textDecoration: 'none' }}>Admin</a>
           </div>
         </div>
