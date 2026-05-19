@@ -37,9 +37,11 @@ export default function Challenge() {
   }, []);
 
   function getEligibleTargets(team, allTeams) {
-    const activeTeams = allTeams.filter(t => t.status === 'active');
-    const myActiveIndex = activeTeams.findIndex(t => t.id === team.id);
-    const targetsAbove = activeTeams.slice(Math.max(0, myActiveIndex - 3), myActiveIndex);
+    const allActiveTeams = allTeams.filter(t => t.status === 'active');
+    const myActiveIndex = allActiveTeams.findIndex(t => t.id === team.id);
+    const targetsAbove = allActiveTeams
+      .slice(Math.max(0, myActiveIndex - 3), myActiveIndex)
+      .filter(t => !t.activeChallenge);
     return targetsAbove.reverse();
   }
 
@@ -58,14 +60,6 @@ export default function Challenge() {
 
   function handleSelectMyTeam(team) {
     if (team.status !== 'active') return;
-    const pendingIncoming = requests.filter(r => r.toTeamId === team.id && r.status === 'pending');
-    const hasSentChallenge = requests.some(
-      r => r.fromTeamId === team.id && ['pending', 'accepted', 'scheduled'].includes(r.status)
-    );
-    if (hasSentChallenge && pendingIncoming.length === 0) {
-      setError('Takımınızın planlanan bir maçı var.');
-      return;
-    }
     setMyTeam(team);
     setEligibleTargets(getEligibleTargets(team, teams));
     setError('');
@@ -170,6 +164,10 @@ export default function Challenge() {
   const myActiveChallenge = myTeam
     ? requests.find(r => (r.fromTeamId === myTeam.id || r.toTeamId === myTeam.id) && ['pending', 'accepted'].includes(r.status))
     : null;
+
+  const hasAnyActive = myTeam
+    ? requests.some(r => (r.fromTeamId === myTeam.id || r.toTeamId === myTeam.id) && ['pending', 'accepted'].includes(r.status))
+    : false;
 
   const inputStyle = {
     width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -314,7 +312,7 @@ export default function Challenge() {
                         borderColor: myActiveChallenge.status === 'accepted' ? '#3a6a3a' : '#4a5a2a',
                       }}>
                         {myActiveChallenge.status === 'pending'
-                          ? '⏳ Tarih belirlemeniz gerekiyor.'
+                          ? '⏳ Tarih belirlenmesi bekleniyor'
                           : '✅ Teklif kabul edildi. Maç tarihi belirlendi.'}
                       </div>
                       {scheduled && (
@@ -365,7 +363,7 @@ export default function Challenge() {
                         </div>
                         <button onClick={() => { setAcceptingRequest(req); setError(''); }}
                           style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#8bc34a', color: '#0f1f0f', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                          Tarih Belirle
+                          Tarih belirle ve kabul et
                         </button>
                       </div>
                     );
@@ -403,41 +401,52 @@ export default function Challenge() {
                 </div>
               )}
 
-              <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 10, color: '#8bc34a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Rakibini belirle
-              </p>
+              {!hasAnyActive && (
+                <>
+                  <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 10, color: '#8bc34a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Rakibini belirle
+                  </p>
 
-              {eligibleTargets.length === 0 ? (
-                <div style={{ padding: 24, borderRadius: 10, border: '1px solid #1e3a1e', fontSize: 14, color: '#4a7a4a', textAlign: 'center' }}>
-                  Maç teklifi edebileceğiniz bir takım yok. Sıralamada 1. olabilirsiniz veya üstünüzdeki tüm takımlar pasif durumda olabilir.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {eligibleTargets.map(team => (
-                    <div key={team.id} onClick={() => setSelectedTarget(team)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 10, border: '1px solid', borderColor: selectedTarget?.id === team.id ? '#8bc34a' : '#1e3a1e', background: selectedTarget?.id === team.id ? '#162a16' : '#131f13', cursor: 'pointer' }}
-                    >
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1a2e1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#8bc34a', flexShrink: 0 }}>
-                        {team.position}
-                      </div>
-                      <div style={{ fontSize: 14, fontWeight: 500 }}>{team.name}</div>
+                  {eligibleTargets.length === 0 ? (
+                    <div style={{ padding: 24, borderRadius: 10, border: '1px solid #1e3a1e', fontSize: 14, color: '#4a7a4a', textAlign: 'center' }}>
+                      Maç teklifi edebileceğiniz bir takım yok. Sıralamada 1. olabilirsiniz veya üstünüzdeki tüm takımlar pasif durumda olabilir.
                     </div>
-                  ))}
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {eligibleTargets.map(team => (
+                        <div key={team.id} onClick={() => setSelectedTarget(team)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 10, border: '1px solid', borderColor: selectedTarget?.id === team.id ? '#8bc34a' : '#1e3a1e', background: selectedTarget?.id === team.id ? '#162a16' : '#131f13', cursor: 'pointer' }}
+                        >
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#1a2e1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#8bc34a', flexShrink: 0 }}>
+                            {team.position}
+                          </div>
+                          <div style={{ fontSize: 14, fontWeight: 500 }}>{team.name}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedTarget && (
+                    <div style={{ marginTop: 20 }}>
+                      <button onClick={handleSendChallenge} disabled={sending}
+                        style={{ width: '100%', padding: 14, borderRadius: 10, border: 'none', background: '#8bc34a', color: '#0f1f0f', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: sending ? 0.7 : 1, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        {sending ? 'Gönderiliyor...' : selectedTarget.name + ' takımına maç teklifi gönder'}
+                      </button>
+                      <button onClick={() => { setMyTeam(null); setView('select-team'); setSelectedTarget(null); }}
+                        style={{ width: '100%', marginTop: 8, padding: 12, borderRadius: 10, border: '1px solid #2e4a2e', background: 'transparent', fontSize: 13, cursor: 'pointer', color: '#4a7a4a' }}>
+                        Geri
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {hasAnyActive && pendingIncoming.length === 0 && (
+                <div style={{ padding: '16px 20px', borderRadius: 10, border: '1px solid #2e4a2e', background: '#111f11', fontSize: 13, color: '#4a7a4a', textAlign: 'center' }}>
+                  Aktif bir maçınız var — yeni teklif göndermek için mevcut maçınızın tamamlanması gerekmektedir.
                 </div>
               )}
 
-              {selectedTarget && (
-                <div style={{ marginTop: 20 }}>
-                  <button onClick={handleSendChallenge} disabled={sending}
-                    style={{ width: '100%', padding: 14, borderRadius: 10, border: 'none', background: '#8bc34a', color: '#0f1f0f', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: sending ? 0.7 : 1, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    {sending ? 'Gönderiliyor...' : selectedTarget.name + ' takımına maç teklifi gönder'}
-                  </button>
-                  <button onClick={() => { setMyTeam(null); setView('select-team'); setSelectedTarget(null); }}
-                    style={{ width: '100%', marginTop: 8, padding: 12, borderRadius: 10, border: '1px solid #2e4a2e', background: 'transparent', fontSize: 13, cursor: 'pointer', color: '#4a7a4a' }}>
-                    Geri
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>
