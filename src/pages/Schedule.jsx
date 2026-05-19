@@ -207,7 +207,6 @@ export default function Schedule() {
                                   <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: '#0f1f0f', padding: '4px 12px', borderRadius: 20, border: '1px solid #2e4a2e' }}>
                                     {result.score}
                                   </div>
-                                  <div style={{ fontSize: 12, color: '#4a7a4a' }}>Kaybeden: {loserName}</div>
                                 </div>
                               </div>
                             ) : (
