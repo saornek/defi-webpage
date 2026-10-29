@@ -90,6 +90,30 @@ export default function Dashboard() {
     } catch { flash('Durum güncellenemedi.', true); }
   }
 
+  async function handleToggleArchive(team) {
+    const archiving = team.status !== 'archived';
+    try {
+      if (archiving) {
+        // Close the gap: every team ranked below moves up one spot.
+        const updates = teams
+          .filter(t => t.status !== 'archived' && t.position > team.position)
+          .map(t => updateDoc(doc(db, 'teams', t.id), { position: t.position - 1 }));
+        updates.push(updateDoc(doc(db, 'teams', team.id), { status: 'archived', activeChallenge: null }));
+        await Promise.all(updates);
+      } else {
+        // Rejoin at the bottom of the active ladder.
+        const activePositions = teams.filter(t => t.status !== 'archived').map(t => t.position);
+        const maxPos = activePositions.length > 0 ? Math.max(...activePositions) : 0;
+        await updateDoc(doc(db, 'teams', team.id), { status: 'active', position: maxPos + 1, activeChallenge: null });
+      }
+      await addDoc(collection(db, 'auditLog'), {
+        action: archiving ? 'team_archived' : 'team_unarchived', actor: 'admin', targetId: team.id,
+        payload: { name: team.name, position: team.position }, createdAt: serverTimestamp(),
+      });
+      flash(archiving ? 'Takım arşivlendi.' : 'Takım arşivden çıkarıldı.');
+    } catch { flash('İşlem başarısız.', true); }
+  }
+
   async function handleSaveTeam() {
     if (!editingTeam) return;
     try {
@@ -307,14 +331,19 @@ export default function Dashboard() {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 14, fontWeight: 600 }}>{team.name}</div>
-                          <div style={{ fontSize: 11, color: team.status === 'active' ? '#4caf50' : '#e09040', marginTop: 2, fontWeight: 600 }}>
-                            {team.status === 'active' ? 'Aktif' : 'Pasif'}
+                          <div style={{ fontSize: 11, color: team.status === 'active' ? '#4caf50' : team.status === 'archived' ? '#8a9aaa' : '#e09040', marginTop: 2, fontWeight: 600 }}>
+                            {team.status === 'active' ? 'Aktif' : team.status === 'archived' ? 'Arşivlendi' : 'Pasif'}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <button onClick={() => setEditingTeam(team)} style={btn(null, true)}>Düzenle</button>
-                          <button onClick={() => handleToggleStatus(team)} style={btn(team.status === 'active' ? '#e09040' : '#4caf50', true)}>
-                            {team.status === 'active' ? 'Pasife al' : 'Aktife al'}
+                          {team.status !== 'archived' && (
+                            <button onClick={() => handleToggleStatus(team)} style={btn(team.status === 'active' ? '#e09040' : '#4caf50', true)}>
+                              {team.status === 'active' ? 'Pasife al' : 'Aktife al'}
+                            </button>
+                          )}
+                          <button onClick={() => handleToggleArchive(team)} style={btn(team.status === 'archived' ? '#4caf50' : '#8a9aaa', true)}>
+                            {team.status === 'archived' ? 'Arşivden çıkar' : 'Arşivle'}
                           </button>
                           <button onClick={() => handleDeleteTeam(team)} style={btn('#cc0000')}>Sil</button>
                         </div>

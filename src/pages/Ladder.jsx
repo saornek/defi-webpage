@@ -5,6 +5,7 @@ import { db } from '../Firebase';
 export default function Ladder() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'teams'), orderBy('position', 'asc'));
@@ -15,6 +16,9 @@ export default function Ladder() {
     });
     return unsubscribe;
   }, []);
+
+  const activeTeams = teams.filter(t => t.status !== 'archived');
+  const archivedTeams = teams.filter(t => t.status === 'archived');
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f1f0f', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
@@ -71,14 +75,14 @@ export default function Ladder() {
 
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#4a7a4a', fontSize: 14 }}>Yükleniyor...</div>
-          ) : teams.length === 0 ? (
+          ) : activeTeams.length === 0 ? (
             <div style={{ padding: 60, textAlign: 'center' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🎾</div>
               <div style={{ fontSize: 14, color: '#4a7a4a' }}>Henüz takım yok</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {teams.map((team, index) => (
+              {activeTeams.map((team, index) => (
                 <div key={team.id} style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -136,6 +140,54 @@ export default function Ladder() {
             </div>
           )}
         </div>
+
+        {archivedTeams.length > 0 && (
+          <div style={{ paddingTop: 36 }}>
+            <button
+              onClick={() => setShowArchived(v => !v)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                padding: '14px 20px', borderRadius: 10, cursor: 'pointer',
+                background: '#101614', border: '1px solid #2a323a', color: '#8a9aaa',
+                fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+              }}>
+              <span style={{ fontSize: 15 }}>📦</span>
+              {showArchived ? 'Arşivlenmiş takımları gizle' : 'Arşivlenmiş takımları göster'}
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#6a7a8a', background: '#6a7a8a22', padding: '2px 8px', borderRadius: 20, border: '1px solid #6a7a8a44' }}>
+                {archivedTeams.length}
+              </span>
+              <span style={{ fontSize: 10, color: '#6a7a8a', transform: showArchived ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
+            </button>
+
+            {showArchived && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+              <div style={{ fontSize: 11, color: '#4a5a6a', textAlign: 'center', marginBottom: 4 }}>
+                Bu takımlar artık oynamıyor — sıralama tablosunda yer almaz.
+              </div>
+              {archivedTeams.map((team) => (
+                <div key={team.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 16, padding: '0 20px', height: 56,
+                  borderRadius: 10, background: '#101614', border: '1px solid #2a323a', opacity: 0.6,
+                }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, background: '#1a222a', color: '#6a7a8a',
+                  }}>
+                    📦
+                  </div>
+                  <div style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#8a9aaa', textAlign: 'center' }}>
+                    {team.name}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6a7a8a', background: '#6a7a8a22', padding: '3px 10px', borderRadius: 20, border: '1px solid #6a7a8a44', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Arşiv
+                  </div>
+                </div>
+              ))}
+            </div>
+            )}
+          </div>
+        )}
 
         <div style={{ paddingTop: 40, paddingBottom: 40, marginTop: 32, borderTop: '1px solid #1e3a1e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 12, color: '#2e4a2e' }}>Canlı güncellemelerle sizlerle</div>

@@ -13,8 +13,12 @@ service cloud.firestore {
 
     match /teams/{teamId} {
       allow read: if true;
-      allow write: if isAdmin();
-      allow update: if true;
+      allow create, delete: if isAdmin();
+      // Non-admins may only touch ladder bookkeeping (position, activeChallenge)
+      // via the public challenge/result flows. status (incl. archiving) is admin-only.
+      allow update: if isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['position', 'activeChallenge']);
     }
 
     match /matches/{matchId} {
