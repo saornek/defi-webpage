@@ -40,7 +40,7 @@ export default function Challenge() {
     const allActiveTeams = allTeams.filter(t => t.status === 'active');
     const myActiveIndex = allActiveTeams.findIndex(t => t.id === team.id);
     const targetsAbove = allActiveTeams
-      .slice(Math.max(0, myActiveIndex - 3), myActiveIndex)
+      .slice(Math.max(0, myActiveIndex - 5), myActiveIndex)
       .filter(t => !t.activeChallenge);
     return targetsAbove.reverse();
   }
