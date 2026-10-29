@@ -39,9 +39,12 @@ export default function Challenge() {
   function getEligibleTargets(team, allTeams) {
     const allActiveTeams = allTeams.filter(t => t.status === 'active');
     const myActiveIndex = allActiveTeams.findIndex(t => t.id === team.id);
+    if (myActiveIndex < 0) return [];
+    // Nearest 5 available teams above (skip any already in a challenge).
     const targetsAbove = allActiveTeams
-      .slice(Math.max(0, myActiveIndex - 5), myActiveIndex)
-      .filter(t => !t.activeChallenge);
+      .slice(0, myActiveIndex)
+      .filter(t => !t.activeChallenge)
+      .slice(-5);
     return targetsAbove.reverse();
   }
 
